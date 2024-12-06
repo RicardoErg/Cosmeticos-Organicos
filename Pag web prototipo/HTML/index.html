@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tienda de Productos</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css"
+  />
+  <style>
+    /* Estilos previos del documento */
+    .form-container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .error-message {
+      color: red;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body class="bg-white">
+  <!-- Header previo -->
+  <main class="container mx-auto px-4 py-8">
+    <!-- Contenedor de vistas -->
+    <div id="viewContainer">
+      <!-- Vista de Productos (Cuadrícula y Tabla) -->
+      <div id="productsView">
+        <h1 class="text-4xl font-bold mb-8 text-center">Productos</h1>
+        <!-- Cuadrícula de Productos -->
+        <div id="gridView" class="product-grid">
+          <!-- Productos existentes -->
+        </div>
+
+        <!-- Vista de Tabla -->
+        <div id="tableView" style="display: none;">
+          <table id="productTable" class="w-full">
+            <!-- Tabla de productos existente -->
+          </table>
+        </div>
+      </div>
+
+      <!-- Vista de Autenticación -->
+      <div id="authView" style="display: none;" class="form-container">
+        <div id="loginForm">
+          <h2 class="text-2xl font-semibold mb-4">Iniciar Sesión</h2>
+          <form id="login-form" class="space-y-4">
+            <input 
+              type="email" 
+              id="login-email" 
+              placeholder="Correo electrónico" 
+              class="border p-2 w-full rounded" 
+              required
+            >
+            <input 
+              type="password" 
+              id="login-password" 
+              placeholder="Contraseña" 
+              class="border p-2 w-full rounded" 
+              required
+            >
+            <div id="login-error" class="error-message"></div>
+            <button 
+              type="submit" 
+              class="bg-black text-white p-2 w-full rounded"
+            >
+              Iniciar Sesión
+            </button>
+            <p 
+              class="text-center mt-2 cursor-pointer text-blue-600" 
+              id="recover-link"
+            >
+              ¿Olvidaste tu contraseña?
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Vista de Recuperación de Cuenta -->
+      <div id="recoverView" style="display: none;" class="form-container">
+        <div id="recoverForm">
+          <h2 class="text-2xl font-semibold mb-4">Recuperar Cuenta</h2>
+          <form id="recover-account-form" class="space-y-4">
+            <input 
+              type="email" 
+              id="recover-email" 
+              placeholder="Ingresa tu correo electrónico" 
+              class="border p-2 w-full rounded" 
+              required
+            >
+            <div id="recover-error" class="error-message"></div>
+            <button 
+              type="submit" 
+              class="bg-black text-white p-2 w-full rounded"
+            >
+              Recuperar Cuenta
+            </button>
+            <p 
+              class="text-center mt-2 cursor-pointer text-blue-600" 
+              id="back-to-login"
+            >
+              Volver a Iniciar Sesión
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Vista de Cambio de Contraseña -->
+      <div id="changePasswordView" style="display: none;" class="form-container">
+        <div id="changePasswordForm">
+          <h2 class="text-2xl font-semibold mb-4">Cambiar Contraseña</h2>
+          <form id="change-password-form" class="space-y-4">
+            <input 
+              type="password" 
+              id="new-password" 
+              placeholder="Nueva contraseña" 
+              class="border p-2 w-full rounded" 
+              required
+            >
+            <input 
+              type="password" 
+              id="confirm-password" 
+              placeholder="Confirmar nueva contraseña" 
+              class="border p-2 w-full rounded" 
+              required
+            >
+            <div id="password-error" class="error-message"></div>
+            <button 
+              type="submit" 
+              class="bg-black text-white p-2 w-full rounded"
+            >
+              Cambiar Contraseña
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-black text-white p-4 text-center">
+    <p>&copy; 2024 Tienda de Productos</p>
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      let currentUser = {
+        email: null,
+        password: null,
+        recoveryToken: null
+      };
+
+      // Validaciones
+      function validateEmail(email) {
+        const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+        return emailPattern.test(email);
+      }
+
+      function validatePassword(password) {
+        return password.length >= 6;
+      }
+
+      function showView(viewId) {
+        $('#productsView, #authView, #recoverView, #changePasswordView').hide();
+        $(`#${viewId}`).show();
+      }
+
+      const table = $('#productTable').DataTable({
+        language: {
+          search: "Buscar:",
+          zeroRecords: "No se encontraron resultados",
+          info: "Mostrando _START_ a _END_ de _TOTAL_ productos",
+          infoEmpty: "Mostrando 0 productos",
+        },
+        dom: '<"top"f>rt<"bottom"ip>',
+        pageLength: 10,
+        searching: true
+      });
+
+      // Manejo de Inicio de Sesión
+      $('#login-form').on('submit', function (event) {
+        event.preventDefault();
+        const email = $('#login-email').val();
+        const password = $('#login-password').val();
+
+        if (!validateEmail(email)) {
+          $('#login-error').text('Por favor ingresa un correo electrónico válido');
+          return;
+        }
+
+        if (!validatePassword(password)) {
+          $('#login-error').text('La contraseña debe tener al menos 6 caracteres');
+          return;
+        }
+
+        currentUser.email = email;
+        currentUser.password = password;
+        alert('Inicio de sesión exitoso');
+        showView('productsView');
+      });
+
+      // Navegación a Recuperación de Cuenta
+      $('#recover-link').on('click', function() {
+        showView('recoverView');
+      });
+
+      // Recuperación de Cuenta
+      $('#recover-account-form').on('submit', function (event) {
+        event.preventDefault();
+        const email = $('#recover-email').val();
+
+        if (!validateEmail(email)) {
+          $('#recover-error').text('Por favor ingresa un correo electrónico válido');
+          return;
+        }
+
+        currentUser.email = email;
+        currentUser.recoveryToken = Math.random().toString(36).substring(2, 15);
+        showView('changePasswordView');
+      });
+
+      // Cambio de Contraseña
+      $('#change-password-form').on('submit', function (event) {
+        event.preventDefault();
+        const newPassword = $('#new-password').val();
+        const confirmPassword = $('#confirm-password').val();
+
+        if (!validatePassword(newPassword)) {
+          $('#password-error').text('La contraseña debe tener al menos 6 caracteres');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          $('#password-error').text('Las contraseñas no coinciden');
+          return;
+        }
+
+        currentUser.password = newPassword;
+        currentUser.recoveryToken = null;
+        alert('Contraseña cambiada exitosamente');
+        showView('authView');
+      });
+
+      // Volver a Inicio de Sesión
+      $('#back-to-login').on('click', function() {
+        showView('authView');
+      });
+
+      // Navegación de Productos
+      $('#productos-btn').on('click', function () {
+        showView('productsView');
+        table.columns.adjust();
+      });
+
+      showView('productsView');
+    });
+  </script>
+</body>
+</html>
